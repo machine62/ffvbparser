@@ -6,18 +6,20 @@ class FFVBScoreParser
     private string $codent;
     private string $poule;
     private string $equipe;
+    private string $AllResult;
 
 
     public const BASE_URL = 'https://www.ffvbbeach.org/ffvbapp/resu/vbspo_calendrier.php';
     public const DEFAULT_CALEND = 'COMPLET';
 
-    public function __construct(string $saison, string $codent, string $poule, string $equipe)
+    public function __construct(string $saison, string $codent, string $poule, string $equipe, bool $AllResult = false)
     {
         $this->DOMContent = null;
         $this->saison = htmlspecialchars($saison);
         $this->codent = htmlspecialchars($codent);
         $this->poule = htmlspecialchars($poule);
         $this->equipe = htmlspecialchars($equipe);
+        $this->AllResult = (bool)$AllResult;
     }
 
     private function generateUrl(): string
@@ -29,9 +31,17 @@ class FFVBScoreParser
         $poule = $this->poule;
         $equipe = $this->equipe;
 
-        $url .= "?saison={$saison}&codent={$codent}&poule={$poule}&calend={self::DEFAULT_CALEND}&equipe={$equipe}";
 
+        $url .= "?saison={$saison}&codent={$codent}&poule={$poule}&calend=" . self::DEFAULT_CALEND;
+        if (!$this->AllResult) {
+            $url .= "&equipe={$equipe}";
+        }
         return $url;
+    }
+
+    public function getURL()
+    {
+        return $this->generateUrl();
     }
 
     public function isContentLoaded(): bool
@@ -47,7 +57,7 @@ class FFVBScoreParser
             $url = $this->generateUrl();
             $html = file_get_contents($url);
             $this->DOMContent = new DOMDocument();
-            @$this->DOMContent->loadHTML($html);
+            @$this->DOMContent->loadHTML($html, LIBXML_NOERROR);
         } catch (\Exception $e) {
             echo "Erreur lors de la récupération du contenu : " . $e->getMessage() . "\n";
         }
@@ -129,10 +139,11 @@ class FFVBScoreParser
         $tables = $this->DOMContent->getElementsByTagName("table");
 
         $table3  = $tables[3];
+
         $rows = $table3->getElementsByTagName("tr");
         foreach ($rows as $row) {
             $cells = $row->getElementsByTagName('td');
-            if ($cells->length > 1 ) {
+            if ($cells->length > 1) {
                 $codematch = $cells[0]->nodeValue; //codematch
                 $date = $cells[1]->nodeValue; //date
                 $heure = $cells[2]->nodeValue; //heure
